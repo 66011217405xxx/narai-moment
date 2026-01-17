@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Narai Moment - LOPBURI</title>
+<style>
+  body{margin:0;font-family:system-ui, -apple-system, sans-serif;background:#e2e0db;text-align:center;color:#5a544e}
+  .box{max-width:380px;margin:15px auto;background:#fff;padding:20px;border-radius:28px;box-shadow:0 15px 40px rgba(0,0,0,0.1)}
+  canvas{width:100%;aspect-ratio:9/16;border-radius:4px;touch-action:none;background:#f5f5f7;cursor: move;}
+  .tools{margin-top:15px;display:flex;flex-wrap:wrap;justify-content:center;gap:6px}
+  button, label{padding:10px 14px;border:none;border-radius:12px;background:#8e7f71;color:#fff;font-size:12px;font-weight:500;cursor:pointer;transition:0.2s}
+  button:hover{background:#76695d}
+  .btn-del{background:#a68b7c} 
+  input[type="file"]{display: none;}
+  h4{margin:0 0 12px 0;letter-spacing:3px;font-weight:400;color:#8e7f71; font-size: 14px;}
+</style>
+</head>
+<body>
+
+<div class="box">
+  <h4>N A R A I • M O M E N T</h4>
+  <canvas id="cv" width="1080" height="1920"></canvas>
+
+  <div class="tools">
+    <label for="imgs">➕ เพิ่มรูปภาพ</label>
+    <input type="file" id="imgs" accept="image/*" multiple>
+    <button onclick="mode='move'">ย้าย/ปรับ</button>
+    <button onclick="mode='pick'">ลบสีพื้นหลัง</button>
+    <button onclick="addText()">เพิ่มข้อความ</button>
+    <button class="btn-del" onclick="deleteItem()">❌ ลบที่เลือก</button>
+    <button class="btn-del" onclick="clearAll()">ล้างทั้งหมด</button>
+    <button style="background:#5a544e; width: 100%; margin-top: 5px;" onclick="saveImg()">💾 บันทึกรูปภาพ</button>
+  </div>
+</div>
+
+<script>
+const cv=document.getElementById("cv"),ctx=cv.getContext("2d");
+let items=[],drag=-1,mode="move";
+
+function draw(){
+  // 1. พื้นหลังขาวควันบุหรี่
+  ctx.fillStyle="#F5F5F7"; 
+  ctx.fillRect(0,0,cv.width,cv.height);
+
+  // 2. วาดกรอบและหัวข้อที่กึ่งกลาง
+  drawLuxuryFrame();
+
+  // 3. วาดวัตถุ (รูป/ข้อความเสริม)
+  items.forEach((it, idx)=>{
+    ctx.save();
+    if(it.type=="img"){
+      ctx.drawImage(it.img,it.x,it.y,it.w,it.h);
+    }else{
+      ctx.font=`${it.weight || '600'} ${it.size}px 'Times New Roman', serif`;
+      ctx.fillStyle="#8e7f71";
+      ctx.textAlign="center";
+      ctx.fillText(it.text,it.x,it.y);
+    }
+    // เส้นประแสดงสถานะการเลือก
+    if(drag === idx) {
+        ctx.strokeStyle = "rgba(142, 127, 113, 0.5)";
+        ctx.setLineDash([10, 10]);
+        if(it.type=="img") ctx.strokeRect(it.x, it.y, it.w, it.h);
+    }
+    ctx.restore();
+  });
+}
+
+function drawLuxuryFrame() {
+    const marginW = 50, marginH = 60, gap = 20, color = "#8e7f71";
+    ctx.strokeStyle = color;
+    
+    // วาดเส้นกรอบ Double Border
+    ctx.lineWidth = 10;
+    ctx.strokeRect(marginW, marginH, cv.width - (marginW*2), cv.height - (marginH*2));
+    ctx.lineWidth = 2;
+    ctx.strokeRect(marginW + gap, marginH + gap, cv.width - ((marginW+gap)*2), cv.height - ((marginH+gap)*2));
+
+    // --- เพิ่มข้อความ LOPBURI NARAI MOMENT ตรงกึ่งกลางกรอบ ---
+    ctx.fillStyle = color;
+    ctx.textAlign = "center";
+    ctx.font = "italic 400 45px 'Times New Roman', serif";
+    ctx.letterSpacing = "6px";
+    // วางไว้ตำแหน่งช่วงบนของกรอบเพื่อให้มีที่วางรูปด้านล่าง
+    ctx.fillText("LOPBURI NARAI MOMENT", cv.width/2, marginH + 180);
+    
+    // เส้นคั่นจางๆ ใต้ชื่อ
+    ctx.beginPath();
+    ctx.moveTo(cv.width/2 - 120, marginH + 220);
+    ctx.lineTo(cv.width/2 + 120, marginH + 220);
+    ctx.lineWidth = 1;
+    ctx.stroke();
+    ctx.letterSpacing = "0px";
+}
+
+function deleteItem() {
+    if(drag !== -1) {
+        items.splice(drag, 1);
+        drag = -1;
+        draw();
+    } else {
+        alert("กรุณาคลิกเลือกวัตถุที่ต้องการลบก่อนครับ");
+    }
+}
+
+function clearAll() {
+    if(confirm("ลบวัตถุทั้งหมดเพื่อเริ่มใหม่ใช่หรือไม่?")) {
+        items = [];
+        drag = -1;
+        draw();
+    }
+}
+
+document.getElementById("imgs").onchange=e=>{
+  [...e.target.files].forEach(f=>{
+    const i=new Image();
+    i.onload=()=>{
+      const scale = Math.min(800 / i.width, 800 / i.height);
+      const w = i.width * scale, h = i.height * scale;
+      // วางรูปให้เยื้องลงมาข้างล่างหัวข้อโดยอัตโนมัติ
+      items.push({type:"img", img:i, x:cv.width/2-w/2, y:cv.height/2-h/4, w:w, h:h});
+      draw();
+    }
+    i.src=URL.createObjectURL(f);
+  });
+};
+
+function addText(){
+  const t=prompt("เพิ่มคำบรรยาย:");
+  if(t) {
+      items.push({type:"text", text:t, x:cv.width/2, y:1750, size:45});
+      draw();
+  }
+}
+
+function pos(ev){
+  const r=cv.getBoundingClientRect();
+  const cx = ev.touches ? ev.touches[0].clientX : ev.clientX;
+  const cy = ev.touches ? ev.touches[0].clientY : ev.clientY;
+  return { x:(cx-r.left)*cv.width/r.width, y:(cy-r.top)*cv.height/r.height };
+}
+
+function hit(p,it){
+  if(it.type=="img") return p.x>it.x&&p.x<it.x+it.w&&p.y>it.y&&p.y<it.y+it.h;
+  return Math.abs(p.x-it.x)<250 && Math.abs(p.y-it.y)<60;
+}
+
+function start(e){
+  const p=pos(e); drag=-1;
+  for(let i=items.length-1; i>=0; i--){ if(hit(p,items[i])){ drag=i; break; } }
+  if(mode=="pick" && drag!=-1 && items[drag].type=="img"){ removeBg(items[drag],p); drag=-1; }
+  draw();
+}
+
+function moveEv(e){
+  if(mode!="move"||drag==-1) return;
+  const p=pos(e);
+  if(items[drag].type=="img"){ items[drag].x=p.x-items[drag].w/2; items[drag].y=p.y-items[drag].h/2; }
+  else { items[drag].x=p.x; items[drag].y=p.y; }
+  draw();
+}
+
+cv.addEventListener("mousedown",start);
+cv.addEventListener("mousemove",moveEv);
+cv.addEventListener("mouseup",()=>{});
+cv.addEventListener("touchstart",start,{passive:false});
+cv.addEventListener("touchmove",e=>{e.preventDefault();moveEv(e)},{passive:false});
+
+function removeBg(item,p){
+  const temp=document.createElement("canvas");
+  temp.width=item.w; temp.height=item.h;
+  const tctx=temp.getContext("2d");
+  tctx.drawImage(item.img,0,0,item.w,item.h);
+  const imgData=tctx.getImageData(0,0,item.w,item.h);
+  const pxX=Math.floor(p.x-item.x), pxY=Math.floor(p.y-item.y);
+  const idx=(pxY*item.w+pxX)*4;
+  const r=imgData.data[idx], g=imgData.data[idx+1], b=imgData.data[idx+2];
+  for(let i=0;i<imgData.data.length;i+=4){
+    if(Math.abs(imgData.data[i]-r)+Math.abs(imgData.data[i+1]-g)+Math.abs(imgData.data[i+2]-b)<45) imgData.data[i+3]=0;
+  }
+  tctx.putImageData(imgData,0,0);
+  const ni=new Image(); ni.onload=()=>{item.img=ni;draw()}; ni.src=temp.toDataURL();
+}
+
+function saveImg(){
+  const a=document.createElement("a");
+  a.download="lopburi_narai_collage.png";
+  a.href=cv.toDataURL("image/png");
+  a.click();
+}
+
+draw();
+</script>
+</body>
+</html>
